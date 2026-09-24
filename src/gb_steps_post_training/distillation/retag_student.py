@@ -245,6 +245,17 @@ def main() -> None:
     specials = special_ids_from(args.teacher)
     tied = bool(s_cfg.get("tie_word_embeddings"))
 
+    # Is there anything to retag at all? Read off the plan rather than by
+    # re-reading the two tokenizer.json files: build_plan has already classified
+    # every teacher id, and already raises when the accounting does not add up, so
+    # this cannot disagree with the surgery that follows.
+    identical_vocab = (
+        not plan["move"]
+        and not plan["transplant"]
+        and not plan["meaninit"]
+        and plan["n_student"] == plan["n_teacher"] == len(plan["reuse"])
+    )
+
     print(f"student : {args.student}")
     print(f"teacher : {args.teacher}")
     print(f"out     : {args.out}")
@@ -267,9 +278,20 @@ def main() -> None:
     critical = [("EOS", specials["eos_token_id"])]
     # The turn-open marker is looked up by content, not assumed to be at a fixed
     # id, and its absence is itself an error: a ChatML donor without <|im_start|>
-    # is not a ChatML donor.
+    # is not a ChatML donor -- UNLESS the two vocabularies are the same, in which
+    # case there is no role map to apply and nothing for it to be wrong about.
     if "<|im_start|>" in t_ids:
         critical.append(("turn-open", t_ids["<|im_start|>"]))
+    elif identical_vocab:
+        # Same vocabulary, id for id. Stated rather than passed over in silence,
+        # because "no turn marker was checked" is the kind of thing that should be
+        # visible in a log when someone later asks why a run masked the wrong span.
+        # The boundary is still asserted, just elsewhere: the caller derives the
+        # masking contract from the chat template this run installs.
+        print("teacher tokenizer has no <|im_start|> and is not a ChatML donor, "
+              "but its vocabulary is IDENTICAL to the student's "
+              f"({plan['n_teacher']} ids, all reuse) -- nothing to retag, so the "
+              "role map is vacuous rather than inapplicable")
     else:
         raise SystemExit("teacher tokenizer has no <|im_start|>; not a ChatML "
                          "donor, so the role map below does not apply")
