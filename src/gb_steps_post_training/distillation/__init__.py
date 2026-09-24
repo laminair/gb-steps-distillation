@@ -1,6 +1,6 @@
 """Distillation prep steps: tokenizer retag, corpus prep, launchers."""
 
-# GOLD distillation source, ported out of distillation.scratchpad/gold during Phase 2.
+# GOLD distillation source, ported out of an earlier exploratory checkout.
 #
 # gold.py and run_vllm_serve.py are ENTRYPOINTS run as scripts, not imported as
 # submodules of this package: `python gold.py` puts this directory on sys.path[0], which

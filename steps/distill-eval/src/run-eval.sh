@@ -14,8 +14,8 @@
 #
 # ONE PROCESS, ALL METRICS. Every metric is a reduction over the same pair of logit
 # tensors, so --metrics jsd,kld,rkld,entropy costs one forward pass over the corpus, not
-# four. The scratchpad ran compute_jsd.py and compute_entropy.py as separate invocations,
-# which reloaded a 30B teacher per metric.
+# four. Earlier exploratory scripts ran the jsd and entropy computations as separate
+# invocations, which reloaded a 30B teacher per metric.
 set -euo pipefail
 
 STUDENT_MODEL=""

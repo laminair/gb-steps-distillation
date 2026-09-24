@@ -3,12 +3,12 @@
 Invoked as `python -m gb_steps_post_training.distillation.run_divergence`, the same convention
 as build_overlay/retag_student (see steps/distill-tokenizer-align/src/run-align.sh).
 
-REPLACES two scratchpad scripts (scripts/compute_jsd.py, scripts/compute_entropy.py) and their
-shell wrappers. The scripts themselves were already argparse-driven and path-clean; the
-hardcoding lived in the wrappers, so this port is mostly consolidation plus the tokenizer
-fixes recorded in divergence.py.
+REPLACES two earlier exploratory scripts (a JSD script and an entropy script) and their shell
+wrappers. The scripts themselves were already argparse-driven and path-clean; the hardcoding
+lived in the wrappers, so this port is mostly consolidation plus the tokenizer fixes recorded
+in divergence.py.
 
-ONE PROCESS COMPUTES ALL REQUESTED METRICS. The scratchpad ran jsd and entropy as separate
+ONE PROCESS COMPUTES ALL REQUESTED METRICS. The earlier scripts ran jsd and entropy as separate
 invocations, which means loading a 30B teacher and re-running every forward pass per metric.
 Every metric here is a reduction over the same two logit tensors, so `--metrics jsd,kld,entropy`
 costs one pass, not three.
@@ -260,7 +260,7 @@ def run(args, metrics: list[str], records: list[dict], ident: dict) -> dict:
             t_logits = teacher(input_ids=ids, attention_mask=att).logits if teacher else None
 
             # Shift so position i predicts token i+1, and drop the mask's first slot to match.
-            # The scratchpad measured logits against the mask unshifted, i.e. compared the
+            # An earlier version measured logits against the mask unshifted, i.e. compared the
             # distribution that predicts token i against the mask for token i.
             s_pred = s_logits[:, :-1, :]
             t_pred = t_logits[:, :-1, :] if t_logits is not None else None

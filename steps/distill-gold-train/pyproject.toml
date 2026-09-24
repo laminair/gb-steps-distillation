@@ -13,8 +13,8 @@ description = "Runtime environment for the distill-gold-train step -- GOLD knowl
 requires-python = ">=3.12,<3.13"
 
 # NOTE ON PINS. Every version constraint below is a finding, not a preference, and the
-# reason belongs next to it -- the whole point of this repo over the scratchpad is that
-# nobody has to guess later why a bound exists.
+# reason belongs next to it -- the whole point of a maintained collection over an
+# exploratory checkout is that nobody has to guess later why a bound exists.
 #
 # WHERE THESE NUMBERS COME FROM. Not from taste and not from "latest": they are the
 # versions actually present in the environment every recorded successful run of this code

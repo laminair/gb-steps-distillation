@@ -1,7 +1,7 @@
 """Distributional metrics between a student and its teacher, over a corpus.
 
-PORTED FROM the scratchpad's `scripts/compute_jsd.py` (337 lines) and
-`scripts/compute_entropy.py` (234 lines), which are the same pipeline twice: render a
+PORTED FROM two earlier exploratory scripts (a 337-line JSD script and a 234-line
+entropy script), which are the same pipeline twice: render a
 conversation, mask the assistant span, run a forward pass, reduce the logits. Merged into one
 module because the duplicated halves had already drifted -- the JSD copy derives the assistant
 span from `offset_mapping` with a token-count fallback while the entropy copy has only the
@@ -17,8 +17,8 @@ labelled data. Hence this module rather than another benchmark. The plan documen
 the finding rather than a routing-around, and this is it: keep `bfcl-eval` for capability,
 add divergence for transfer.
 
-THE TOKENIZER IS NOT INCIDENTAL HERE. The scratchpad loaded it with
-`AutoTokenizer.from_pretrained(model1_path)` (compute_jsd.py:231), which on a Granite
+THE TOKENIZER IS NOT INCIDENTAL HERE. An earlier version loaded it with
+`AutoTokenizer.from_pretrained(model1_path)`, which on a Granite
 directory silently substitutes GPT2Tokenizer's plain ByteLevel pre_tokenizer for the trained
 one. Both models then receive the SAME mis-segmented ids, so nothing crashes and the numbers
 look plausible -- they are simply measured on text in a segmentation neither model was trained
@@ -115,9 +115,8 @@ def assistant_span(messages: list[dict], tok, max_length: int) -> dict | None:
 
     if offsets is not None:
         # Character offsets are exact; the token-count fallback below is not, because
-        # re-tokenizing the prompt alone can merge differently at the boundary. The
-        # scratchpad's entropy copy had only the fallback, which is the drift this port
-        # removes.
+        # re-tokenizing the prompt alone can merge differently at the boundary. An earlier
+        # entropy-only version had only the fallback, which is the drift this port removes.
         prompt_chars = len(prompt)
         offs = offsets[0].tolist()
         start = next((i for i, (s, _) in enumerate(offs) if s >= prompt_chars), len(offs))
@@ -153,8 +152,8 @@ def collate(items: list[dict], pad_token_id: int) -> dict:
 def reduce_logits(logits_a, logits_b, metric: str):
     """Per-token metric in nats. logits_b is None for `entropy`.
 
-    Kept verbatim from the scratchpad's arithmetic (including the 1e-10 floor inside the JSD
-    mixture log) so a ported number is comparable to a recorded one.
+    Kept verbatim from the earlier version's arithmetic (including the 1e-10 floor inside the
+    JSD mixture log) so a ported number is comparable to a recorded one.
     """
     import torch
     import torch.nn.functional as F
@@ -197,8 +196,8 @@ PROBE_STRINGS = (
 def check_tokenizers(model_a, model_b, *, allow_mismatch: bool = False) -> dict:
     """Refuse a pair whose tokenizers would assign DIFFERENT ids to the same text.
 
-    A hard failure where the scratchpad printed a warning about vocab sizes and carried on
-    (compute_jsd.py:239). A divergence between distributions over different vocabularies is
+    A hard failure where an earlier version printed a warning about vocab sizes and carried
+    on. A divergence between distributions over different vocabularies is
     not a large number, it is a meaningless one: index i denotes a different token to each
     model, so the arithmetic succeeds and measures nothing. That is worth a refusal because
     the run costs GPU hours and looks successful.

@@ -23,8 +23,8 @@ ITS CONSUMER is sft.py's KD path (`--precomputed-logits-dir`), which
     (`shard_offset`, `assistant_logits_used`).
 Every field name below that the consumer reads is therefore FIXED by that code, not by taste.
 
-HOW IT DIFFERS FROM data/precompute_logits.py in the distillation.scratchpad submodule, which is
-what this was ported from. Each difference is a defect found while porting, not a preference:
+HOW IT DIFFERS FROM an earlier exploratory version of this same script, which is what this
+was ported from. Each difference is a defect found while porting, not a preference:
 
   1. --teacher-tokenizer, separate from --teacher-model. The original took one --teacher_model and
      used it for both the weights and the tokenizer, then wrote `tokenizer_name_or_path:
@@ -142,9 +142,9 @@ def get_args(argv=None):
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    # Hyphenated flags, unlike the scratchpad's underscored ones: this is what every other
-    # entrypoint in this collection accepts, and the step launcher passes them through unchanged
-    # instead of translating -- one fewer place for a name to drift.
+    # Hyphenated flags, unlike the earlier version's underscored ones: this is what every
+    # other entrypoint in this collection accepts, and the step launcher passes them through
+    # unchanged instead of translating -- one fewer place for a name to drift.
     p.add_argument("--input-jsonl", required=True)
     p.add_argument("--output-dir", required=True)
     p.add_argument("--teacher-model", required=True, help="Directory of teacher WEIGHTS.")
@@ -704,7 +704,7 @@ def _ensure_process_group(torch, world_size, *, env=None, emit=print):
         KeyError (LSF job 1201632).
 
     Every rank count above 1 goes through accelerate's multiprocessing launcher, which sets all of
-    them -- which is why the scratchpad, run only at 8 and 16 ranks, never met either.
+    them -- which is why an earlier version, run only at 8 and 16 ranks, never met either.
 
     The second failure is why this sets the whole launcher environment rather than just the two
     variables torch's rendezvous reads: transformers is not the only library that reads LOCAL_RANK

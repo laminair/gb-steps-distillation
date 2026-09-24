@@ -3,10 +3,10 @@
 Build a tokenizer *overlay*: a mirror directory holding the fast tokenizer of a model
 directory and nothing that can make transformers fall back off it.
 
-WHY THIS FILE EXISTS AT ALL. Until now it did not. The plan doc calls stage 3 "the single
-most reproducibility-critical undocumented step in the pipeline", and it was undocumented
-in the strongest sense: 8+ scratchpad configs point at `teacher_overlays/<teacher>` paths
-that a human created BY HAND. Nothing in the repository could rebuild them. That is the
+WHY THIS FILE EXISTS AT ALL. Until now it did not. This was, in an earlier plan, described
+as "the single most reproducibility-critical undocumented step in the pipeline", and it was
+undocumented in the strongest sense: many recipe configs pointed at `teacher_overlays/<teacher>`
+paths that a human created BY HAND. Nothing in the repository could rebuild them. That is the
 exact failure this collection exists to end -- an artifact every run depends on, whose
 construction lives only in someone's shell history.
 
@@ -53,7 +53,7 @@ Three consequences, the first two contradicting what this module originally asse
      resolves correctly depends on a file the overlay does not contain, so the overlay
      states the value positively instead of relying on that.
 
-The scratchpad's CLAUDE.md quantifies the cost of getting this wrong at 26.1 vs 3.29
+Earlier exploratory notes quantified the cost of getting this wrong at 26.1 vs 3.29
 PPL/token. That number was measured under an unrecorded, older transformers, so it is
 cited here as the stakes rather than as a reproduction of the mechanism above.
 

@@ -14,7 +14,7 @@ override.
 else, so it is immune BY CONSTRUCTION rather than by remembering to pass the right
 directory. `retag_student.py` and `prep_corpus.py` each arrived at this independently; the
 third consumer (`distill-eval`'s divergence metrics) is where it became worth sharing, and
-the SECOND time it was worth sharing -- the scratchpad's `scripts/compute_jsd.py:231` called
+the SECOND time it was worth sharing -- an earlier exploratory JSD script called
 `AutoTokenizer.from_pretrained` and would have carried the bug into the ported step.
 
 That call is worth spelling out, because "the tokenizer is slightly wrong" sounds cosmetic

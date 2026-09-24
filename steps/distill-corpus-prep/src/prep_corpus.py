@@ -928,11 +928,11 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             # holds for its own subject: the row ids remain the record of what the trainer
             # consumed, since only the trainer knows what its arm did.
             #
-            # The ":1824" this comment used to cite matched no copy of the trainer -- there are
-            # five on disk and the filter sits at a different line in each. The canonical one is
-            # src/gb_steps_post_training/distillation/custom_gold_trainer.py; the copy under
-            # distillation.scratchpad/ hardcodes `enable_thinking=False` in the same render and
-            # would give a predicate that disagrees on exactly the reasoning rows.
+            # The ":1824" this comment used to cite matched no copy of the trainer -- there were
+            # multiple copies in earlier checkouts and the filter sat at a different line in
+            # each. The canonical one is
+            # src/gb_steps_post_training/distillation/custom_gold_trainer.py (not included in
+            # this repo; see the trainer's own repository).
             #
             # Safe as an extra column: the tokenize map (:1814) sets no remove_columns, and
             # select_columns runs only under packing, which these configs do not use -- so

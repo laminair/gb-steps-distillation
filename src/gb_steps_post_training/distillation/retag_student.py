@@ -3,11 +3,10 @@
 Retag a Granite student onto a teacher's tokenizer, transplanting special-token
 embeddings by structural role instead of mean-initializing them.
 
-Ported from `distillation.scratchpad/retag_student_v2.py`. Same surgery, but every
-path, id, and mapping is derived or passed in rather than hardcoded to one
-sandbox, because the original held three absolute out-of-tree paths, three
-hardcoded token ids, and a preference for a directory nobody outside that sandbox
-can read.
+Ported from an earlier exploratory version of this same surgery. Every path, id, and
+mapping here is derived or passed in rather than hardcoded to one sandbox, because
+the earlier version held three absolute out-of-tree paths, three hardcoded token
+ids, and a preference for a directory nobody outside that sandbox could read.
 
 WHY THE TRANSPLANT EXISTS. A Granite base student and a Granite 4.2 teacher share
 100,352 vocab entries and 96 added tokens, but disagree on **17 of those 96 ids**
