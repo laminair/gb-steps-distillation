@@ -1,0 +1,41 @@
+# Dependencies for distill-hf-export.
+#
+# This step is CPU-only and deliberately thin. It SELECTS, PRUNES, NORMALISES and
+# ASSERTS -- it does not convert weights (see README.md: the trainer's
+# zero3_save_16bit_model already writes HF-native safetensors at the checkpoint
+# root). So there is no torch, no deepspeed, no vllm, no accelerate here, and the
+# step must never grow them: the moment this image needs CUDA it stops being
+# runnable on the cheap CPU nodes that a release-packaging step should run on.
+[project]
+name = "distill-hf-export"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  # The ONLY hard dependency, and only for `--verify`. export() itself is stdlib.
+  # Pinned to the same major as the trainer that wrote the checkpoint: transformers
+  # 5.x renamed PreTrainedTokenizerFast -> TokenizersBackend, so a 4.x verifier
+  # reading a 5.x-written tokenizer_config.json would report a spurious failure.
+  # Verified against transformers 5.8.0 / tokenizers 0.22.1 -- the versions in the
+  # environment this step was actually run in. An earlier revision of this file set the floor at
+  # 5.15.0 and attributed it to "the NeMo 25.11 base image". 5.15.0 is a real release
+  # (steps/bfcl-eval/uv.lock resolves it) but it is NOT what is installed here, and the
+  # attribution was invented -- the effect was a floor that excluded the only
+  # environment this step has ever been verified in. Raise the floor only to a version
+  # actually observed in the environment a run uses.
+  "transformers>=5.8.0,<6",
+  # Read by --verify's shard sanity check. transformers pulls it in anyway; naming
+  # it here keeps the dependency visible rather than incidental.
+  "safetensors>=0.4",
+  # Tracking backends, declared as first-class dependencies of EVERY step rather than as
+  # optional extras. tracking.py distinguishes two situations deliberately (tracking.py:322-337):
+  # a missing KEY means "tracking is not configured in this environment" and is fine, while a
+  # missing PACKAGE means "this image is broken" and is fatal. So an image that can be handed a
+  # ClearML or W&B config but cannot import the backend would fail AFTER the step has been
+  # scheduled and its inputs staged, which is the expensive place to find out. Floors are the
+  # versions installed in envs/kd-sandbox, which deps_declared.py checks these ranges against.
+  "clearml>=2.1.12",
+  "wandb>=0.28.2",
+]
+
+[tool.uv]
+package = false

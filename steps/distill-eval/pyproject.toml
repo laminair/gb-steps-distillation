@@ -1,0 +1,40 @@
+# Dependencies for distill-eval.
+#
+# TORCH IS REQUIRED HERE and that is the difference from distill-corpus-prep, which has none
+# on purpose. This step runs forward passes and reduces logits, so tensors are the work
+# rather than an implementation detail. It is NOT listed below: the NeMo base image supplies
+# a CUDA-matched build, and pinning torch in this file would either be ignored or would
+# replace a working CUDA wheel with a mismatched one.
+#
+# NOT here, deliberately: vllm and deepspeed. There is no generation (the corpus supplies
+# the completions) and no optimizer state to shard. If either appears, something has started
+# training in an eval step.
+[project]
+name = "distill-eval"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  # Same major as the trainer that produced the checkpoints being measured; 5.x is also
+  # where chat_template.jinja became canonical, which fast_tokenizer.load reads directly.
+  "transformers>=5.8.0,<6",
+  # The fast-tokenizer backend. A first-class dependency, not incidental: the tokenizer is
+  # built as PreTrainedTokenizerFast(tokenizer_file=...) to bypass the tokenizer_class trap,
+  # and the guard's probe would erase the very disagreement it looks for if it went through
+  # AutoTokenizer.
+  "tokenizers>=0.22",
+  # run_divergence summarises with numpy. Explicit rather than inherited from the base image,
+  # so a base-image bump cannot quietly remove it.
+  "numpy>=1.26",
+  # Tracking backends, declared as first-class dependencies of EVERY step rather than as
+  # optional extras. tracking.py distinguishes two situations deliberately (tracking.py:322-337):
+  # a missing KEY means "tracking is not configured in this environment" and is fine, while a
+  # missing PACKAGE means "this image is broken" and is fatal. So an image that can be handed a
+  # ClearML or W&B config but cannot import the backend would fail AFTER the step has been
+  # scheduled and its inputs staged, which is the expensive place to find out. Floors are the
+  # versions installed in envs/kd-sandbox, which deps_declared.py checks these ranges against.
+  "clearml>=2.1.12",
+  "wandb>=0.28.2",
+]
+
+[tool.uv]
+package = false

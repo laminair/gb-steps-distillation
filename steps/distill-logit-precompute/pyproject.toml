@@ -1,0 +1,99 @@
+[project]
+name = "distill-logit-precompute-step"
+version = "0.1.0"
+description = "Runtime environment for the distill-logit-precompute step -- one teacher forward pass over the corpus, storing top-K logits per assistant token for the off-policy KD arm."
+# 3.12 EXACTLY, expressed as a one-minor range, for the reason spelled out in
+# steps/distill-gold-train/pyproject.toml: with an open upper bound `uv lock` resolves against
+# an interpreter nothing here has ever run (it picked 3.14 there), so the lock would describe a
+# dependency graph that has never executed. The only interpreter this module has run under is
+# the CPython 3.12 in the environment this step was validated against, which ran all five
+# smoke phases of this step end to end.
+requires-python = ">=3.12,<3.13"
+
+# WHERE THESE NUMBERS COME FROM. Read out of that environment's installed metadata on
+# 2026-08-27. They are findings, not preferences.
+#
+# HOW THE SET WAS DERIVED, since it is smaller than distill-sft-baseline's and the difference
+# matters. Statically, over the transitive import closure of
+# src/gb_steps_post_training/distillation/precompute_logits.py, following BOTH the package-scope
+# imports and the sibling modules it reaches. precompute_logits.py imports torch, transformers,
+# accelerate and tqdm inside run_precompute() rather than at module scope (its own docstring
+# says why: argparse, the resume repair, the post-conditions and the expectation gate must be
+# reachable without a CUDA-sized install, which is what steps/distill-logit-precompute/Makefile's
+# `uv run --no-project --with pytest` depends on). Deferred is still required at RUN time, so
+# they are declared here.
+#
+# THE ONE NON-OBVIOUS ENTRY IS utils. run_precompute() also does
+# `from gb_steps_post_training.distillation.utils import verify_fast_tokenizer,
+# verify_tokenizer_consistency`, and utils.py imports numpy, pandas and huggingface_hub at
+# MODULE scope. So this step needs pandas -- for two tokenizer verifiers, in a step that never
+# touches a dataframe. That is worth stating rather than quietly listing: it is a property of
+# the shared module, not of this step, and if utils is ever split the three lines below are the
+# ones to revisit. rich is NOT declared: utils guards it behind
+# transformers.utils.is_rich_available().
+#
+# WHAT IS DELIBERATELY ABSENT, versus distill-sft-baseline's set next door: no trl, no
+# deepspeed, no datasets, no liger-kernel. This step runs a plain sharded forward pass under
+# accelerate's device mesh -- there is no Trainer, no ZeRO, no optimizer state, and it reads the
+# corpus as JSONL itself. That absence is what makes this the one GPU step in the collection
+# with no sdist-only dependency, and therefore the one whose image needs no CUDA toolkit at
+# build time (see Dockerfile).
+dependencies = [
+    # 2.8.0 EXACTLY, and this pin is coupled to the image rather than to the code. The Mamba2
+    # mixer kernels a Granite 4 hybrid teacher resolves at model-load time are variant-specific:
+    # the cache this step's image bakes is torch28-cxx11-cu128-x86_64-linux (observed on a
+    # real GPU node during validation). A torch bump silently invalidates that cache, and
+    # because the step runs with HF_HUB_OFFLINE=1 the symptom is OfflineModeIsEnabled AFTER the
+    # GPUs are allocated and a 60 GB teacher is being loaded -- which is exactly what job
+    # 1136209 paid for on the gold path.
+    "torch==2.8.0",
+    # 5.8.0 EXACTLY. Same 5.x-only surface as the rest of the collection (chat_template.jinja
+    # read as a FILE, `return_assistant_tokens_mask`, rope_parameters), plus one specific to this
+    # step: FA2 is requested explicitly here and transformers 5.x serves it from the kernels hub
+    # when the `flash_attn` package is absent -- modeling_utils.py's FLASH_ATTN_KERNEL_FALLBACK,
+    # which a companion check reads back out of the installed transformers rather than
+    # hard-coding. There is no flash_attn package on the validation account (it will not build:
+    # system CUDA 13.1 against torch's cu128), so that fallback is the only FA2 there is here.
+    "transformers==5.8.0",
+    # 1.12.0 EXACTLY. Not a launcher convenience: this module builds a 2-D device mesh
+    # (torch.distributed.device_mesh.init_device_mesh) and reads its rank geometry through
+    # accelerate.PartialState, so TP-within-node / DP-across-nodes is accelerate's job here.
+    "accelerate==1.12.0",
+    # The progress bar over a multi-hour pass. A leaf utility with a stable surface, pinned
+    # exactly only because this whole step's install is pinned exactly and a lone range would be
+    # the one line a resolver is free to move.
+    "tqdm==4.67.1",
+    # 1.14.0 EXACTLY, for the same reason distill-gold-train pins it: the on-disk kernel cache
+    # LAYOUT is part of this step's contract, not an implementation detail. The image bakes that
+    # cache at build time and a companion preflight check reads it back with
+    # local_files_only=True; huggingface_hub is what decides where it lives.
+    "huggingface_hub==1.14.0",
+    # Both arrive through gb_steps_post_training.distillation.utils at module scope -- see the
+    # note above. numpy is also transitively required by torch; declaring it is what makes the
+    # version a decision instead of a side effect (the same reasoning that added `datasets` to
+    # distill-gold-train's list after an unconstrained resolve picked a major version ahead).
+    "numpy==2.2.6",
+    "pandas==2.3.3",
+    # 0.12.3 EXACTLY. The preflight does not use the public `kernels` API: gold-kernels.sh's
+    # probe imports `kernels.utils.install_kernel` and this step's Dockerfile bakes the cache
+    # through the same private name. A private-surface consumer cannot take a range.
+    "kernels==0.12.3",
+    # Tracking backends. Every step in this collection declares both, so that the logger is a
+    # dependency of the STEP rather than of whoever happens to launch it. This step emits no
+    # metrics of its own today -- it is a single pass with no training loop -- and the pins are
+    # here so that when it does, the backend it reports to is the one the rest of the recipe
+    # already resolved. Exact pins, matching distill-gold-train: transformers drives ClearML
+    # through an env-var contract (CLEARML_PROJECT, CLEARML_TASK, CLEARML_LOG_MODEL) that a
+    # backend release can reinterpret, and exact pins are also what brings them under
+    # src/gb_steps_post_training/distillation/deps_declared.py, which verifies exact pins only.
+    "clearml==2.1.12",
+    "wandb==0.28.2",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+# Not a package in its own right -- this file exists so `uv lock`/`uv sync` can produce a
+# reproducible venv for the step's runtime, not to build a wheel. Same as every other step.
+[tool.uv]
+package = false

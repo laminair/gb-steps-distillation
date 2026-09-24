@@ -1,0 +1,38 @@
+# Dependencies for distill-corpus-prep.
+#
+# CPU-only, and NO TORCH -- deliberately, and it is worth stating because every other
+# distillation step here has it. This step renders conversations through a chat template and
+# counts tokens; apply_chat_template without return_tensors hands back plain Python lists, so
+# nothing ever becomes a tensor. transformers imports fine without torch, and leaving it out
+# is the difference between a ~400MB step and a ~2GB one. If torch appears in this file,
+# something has started doing arithmetic that belongs in the trainer.
+[project]
+name = "distill-corpus-prep"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  # Same major as the trainer that consumes this corpus. The floor matches the rest of the
+  # collection (observed in envs/kd-sandbox); 5.x is also where chat_template.jinja became
+  # the canonical location, which load_tokenizer() reads directly.
+  "transformers>=5.8.0,<6",
+  # The fast-tokenizer backend. A first-class dependency, not incidental: the tokenizer is
+  # constructed as PreTrainedTokenizerFast(tokenizer_file=...) to bypass the tokenizer_class
+  # trap, which is a direct use of this package's loader.
+  "tokenizers>=0.22",
+  # Only for the `--dataset <hf-id>` path, which is why prep_corpus.py imports it inside the
+  # function. Installed anyway so that path is not a runtime surprise on a node with no
+  # egress -- but a local-JSONL run never imports it.
+  "datasets>=3.0",
+  # Tracking backends, declared as first-class dependencies of EVERY step rather than as
+  # optional extras. tracking.py distinguishes two situations deliberately (tracking.py:322-337):
+  # a missing KEY means "tracking is not configured in this environment" and is fine, while a
+  # missing PACKAGE means "this image is broken" and is fatal. So an image that can be handed a
+  # ClearML or W&B config but cannot import the backend would fail AFTER the step has been
+  # scheduled and its inputs staged, which is the expensive place to find out. Floors are the
+  # versions installed in envs/kd-sandbox, which deps_declared.py checks these ranges against.
+  "clearml>=2.1.12",
+  "wandb>=0.28.2",
+]
+
+[tool.uv]
+package = false

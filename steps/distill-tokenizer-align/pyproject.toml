@@ -1,0 +1,38 @@
+# Dependencies for distill-tokenizer-align.
+#
+# CPU-only. The retag loads safetensors, copies 16 embedding rows by structural role, and
+# saves -- there is no matmul anywhere in this step, so it needs torch but not CUDA torch.
+# That is why the Dockerfile installs from the CPU wheel index: it keeps a packaging-class
+# step off the GPU nodes and cuts the image by an order of magnitude. If this step ever
+# appears to need a GPU, something has been misdiagnosed.
+[project]
+name = "distill-tokenizer-align"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  # Same major as the trainer that consumes the retagged student. transformers 5.x renamed
+  # PreTrainedTokenizerFast -> TokenizersBackend, so a 4.x/5.x mix makes the overlay
+  # verification report spurious failures on a tokenizer that is in fact correct.
+  # Floor is the observed version in envs/kd-sandbox (see distill-hf-export/pyproject.toml
+  # for why it is 5.8.0 and not a guessed-higher number).
+  "transformers>=5.8.0,<6",
+  # Tensor load/save for the embedding transplant. CPU build -- see the Dockerfile.
+  "torch>=2.8",
+  "safetensors>=0.4",
+  # Imported directly by build_overlay.verify() to get GROUND-TRUTH ids straight from the
+  # backend, bypassing transformers. That bypass is the entire point of the check, so this
+  # is a first-class dependency and not an incidental one pulled in by transformers.
+  "tokenizers>=0.22",   # observed: 0.22.1
+  # Tracking backends, declared as first-class dependencies of EVERY step rather than as
+  # optional extras. tracking.py distinguishes two situations deliberately (tracking.py:322-337):
+  # a missing KEY means "tracking is not configured in this environment" and is fine, while a
+  # missing PACKAGE means "this image is broken" and is fatal. So an image that can be handed a
+  # ClearML or W&B config but cannot import the backend would fail AFTER the step has been
+  # scheduled and its inputs staged, which is the expensive place to find out. Floors are the
+  # versions installed in envs/kd-sandbox, which deps_declared.py checks these ranges against.
+  "clearml>=2.1.12",
+  "wandb>=0.28.2",
+]
+
+[tool.uv]
+package = false
