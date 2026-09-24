@@ -128,7 +128,7 @@ def expectation(mans: list[dict]) -> dict:
         # "(recorded) -> (requested)", the recorded side comes back through JSON with its keys
         # sorted and the requested side renders in insertion order -- so an unsorted literal makes
         # two IDENTICAL shards print with their keys in different positions, and the reader has to
-        # diff four fields by eye to find the one changed hex. Job 1161745's leg 4c showed exactly
+        # diff four fields by eye to find the one changed hex. A real run showed exactly
         # that. An operator reads this message under preemption pressure.
         "shards": [{"index": m["shard"]["index"],
                     "rows_entries": m["rows"]["entries"],
@@ -196,8 +196,8 @@ def verify_shards(mans: list[dict]) -> list[str]:
     shard for the log; raises PrepError on a mismatch.
 
     WHY THIS IS NOT REDUNDANT WITH THE RESUME GATE, which is the interesting part. The gate's
-    expectation keys on `rows.sha256` read out of each shard's manifest -- a SELF-REPORT. Job
-    1161579 measured what that means: perturbing a byte in shard 1's corpus_rows.jsonl changed
+    expectation keys on `rows.sha256` read out of each shard's manifest -- a SELF-REPORT. A direct
+    measurement showed what that means: perturbing a byte in shard 1's corpus_rows.jsonl changed
     nothing the gate could see, because the manifest still claimed the old digest, so the merge
     skipped and reported a corpus built from a file that no longer existed in that form. The gate
     was working exactly as designed; the design trusted the wrong thing.

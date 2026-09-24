@@ -60,10 +60,10 @@ def parse_args(argv=None):
                          "incomplete, and they are different failures with the same cause -- "
                          "a --max-length below what the corpus needs. SKIPPED: the prompt "
                          "alone fills the budget, so no assistant tokens survive and the "
-                         "record contributes nothing (LSF job 1138086: --max-length 1024 "
+                         "record contributes nothing (confirmed directly: --max-length 1024 "
                          "against a corpus averaging 2347 tokens skipped 100%). TRUNCATED: "
                          "the span survives but its tail is cut, so the record contributes a "
-                         "PREFIX of its completion (LSF job 1138147: --max-length 2048 "
+                         "PREFIX of its completion (confirmed directly: --max-length 2048 "
                          "skipped nothing at all and quietly measured partial answers). "
                          "Neither skew is random -- both hit the longest conversations and "
                          "only those -- so the reported mean is a length-biased estimate "
@@ -142,7 +142,7 @@ def rendered_length(tok, messages) -> int:
 
     NOT len(tok.apply_chat_template(..., tokenize=True)). Under transformers 5.x that returns
     a BatchEncoding, so len() counts its KEYS: it reported "median rendered length 2 tokens"
-    for a corpus whose records are ~3956 tokens (LSF job 1138096). That is worse than having
+    for a corpus whose records are ~3956 tokens, confirmed by direct measurement. That is worse than having
     no diagnostic, because it tells an operator whose --max-length is four times too small
     that length is not the problem. Render to text, then tokenize.
     """
@@ -182,7 +182,7 @@ def run(args, metrics: list[str], records: list[dict], ident: dict) -> dict:
     #   truncated -- a span was measured, but only its head. The record is counted in
     #                n_samples and contributes a mean over a PREFIX of the answer.
     # Truncation is the more dangerous of the two precisely because it looks like success:
-    # job 1138147 at --max-length 2048 skipped ZERO records of sixteen and reported a clean
+    # a direct measurement at --max-length 2048 skipped ZERO records of sixteen and reported a clean
     # jsd over conversations whose second halves were never seen. Long conversations are the
     # ones that get cut, so the surviving measurement is a length-biased estimate of the
     # divergence, reported as the divergence. So a high incomplete rate is a refusal with the
@@ -294,7 +294,7 @@ def run(args, metrics: list[str], records: list[dict], ident: dict) -> dict:
                        "chat_template_source": template_source},
             # measured == truncated + fully-measured. A consumer that reads only `measured`
             # and `n_samples` cannot tell a complete run from a truncated one, which is
-            # exactly the confusion job 1138147 walked into, so both are recorded.
+            # exactly the confusion a prior run walked into, so both are recorded.
             "counts": {"corpus_records": len(records), "measured": len(encoded),
                        "skipped_no_assistant_span": skipped,
                        "truncated_at_max_length": truncated,

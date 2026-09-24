@@ -24,8 +24,7 @@ requires-python = ">=3.12,<3.13"
 # HOW FAR THE PINS ARE VERIFIED. `uv lock` resolves them against PyPI (see uv.lock, and
 # `uv lock --check` re-verifies), and the venv above proves the same set runs. What is
 # NOT verified is that they INSTALL from these pins into this step's base image: no
-# container build environment is available here (Dockerfile header, and the
-# container-build blocker in docs/planning/distillation-steps-plan.md), and the sandbox
+# container build environment is available here (Dockerfile header), and the sandbox
 # venv was assembled by hand rather than from this file. `deepspeed` is sdist-only and
 # compiles against the CUDA toolkit in the base image, which is the part a resolution check
 # cannot speak to.
@@ -57,7 +56,7 @@ dependencies = [
     # the sandbox venv: `import trl.experimental.gold` raises
     # `ModuleNotFoundError: No module named 'vllm_ascend'`. gold.py and
     # run_vllm_serve.py each undo it before their first `from trl...` import, which is
-    # why job 1138940 trained anyway. The bug is still unfixed on trl main (that function
+    # why training ran anyway. The bug is still unfixed on trl main (that function
     # still omits return_version), but its consumer has moved, so neither the failure nor
     # the workaround transfers to a newer release unexamined.
     "trl==0.26.2",
@@ -75,7 +74,7 @@ dependencies = [
     # ACCELERATE config, the launcher invokes `accelerate launch`, and ZeRO-3 checkpoint
     # saving (zero3_save_16bit_model) is what makes distill-hf-export a selector rather
     # than a converter. The accelerate/deepspeed/torch triple is the one this step has
-    # actually trained and resumed under (jobs 1136274, 1138940).
+    # actually trained and resumed under, confirmed by direct measurement.
     "accelerate==1.12.0",
     # 0.17.5 EXACTLY, which is what `deepspeed<0.17.6` already meant in practice: 0.17.5
     # was the newest release under that ceiling and is the version installed in the
@@ -92,7 +91,7 @@ dependencies = [
     # 0.11.0 EXACTLY, and it is coupled to BOTH neighbours. Downwards: vllm 0.11.0 pins
     # torch==2.8.0, which must equal the torch in the base image, because the Mamba2 Hub
     # kernels are resolved per-variant and the cache baked into the image is
-    # torch28-cxx11-cu128-x86_64-linux (job 1136249) -- a torch bump silently invalidates
+    # torch28-cxx11-cu128-x86_64-linux, confirmed by direct measurement -- a torch bump silently invalidates
     # it. Upwards: gold.py and run_vllm_serve.py patch
     # `GraniteMoeHybridAttention.__init__` and `GraniteDecoderLayer.__init__` inside
     # vllm.model_executor, private surfaces that vLLM reorganises freely.
@@ -135,8 +134,9 @@ dependencies = [
     # `uv add` writes: unlike pyyaml above, these are not leaf utilities whose surface is stable
     # -- transformers' ClearMLCallback drives them through an env-var contract (CLEARML_PROJECT,
     # CLEARML_TASK, CLEARML_LOG_MODEL) that a backend release can reinterpret, and this is the
-    # step whose run IS the deliverable. Pinning also brings them under deps_declared.py, which
-    # verifies only the exact pins for this step -- a range here would be declared but unchecked.
+    # step whose run IS the deliverable. Pinning also brings them under a companion
+    # pin-verification tool, which checks only the exact pins for this step -- a range here
+    # would be declared but unchecked.
     "clearml==2.1.12",
     "wandb==0.28.2",
 ]

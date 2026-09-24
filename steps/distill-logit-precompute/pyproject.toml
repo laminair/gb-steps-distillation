@@ -44,8 +44,7 @@ dependencies = [
     # the cache this step's image bakes is torch28-cxx11-cu128-x86_64-linux (observed on a
     # real GPU node during validation). A torch bump silently invalidates that cache, and
     # because the step runs with HF_HUB_OFFLINE=1 the symptom is OfflineModeIsEnabled AFTER the
-    # GPUs are allocated and a 60 GB teacher is being loaded -- which is exactly what job
-    # 1136209 paid for on the gold path.
+    # GPUs are allocated and a 60 GB teacher is being loaded -- confirmed directly on the gold path.
     "torch==2.8.0",
     # 5.8.0 EXACTLY. Same 5.x-only surface as the rest of the collection (chat_template.jinja
     # read as a FILE, `return_assistant_tokens_mask`, rope_parameters), plus one specific to this
@@ -84,8 +83,8 @@ dependencies = [
     # here so that when it does, the backend it reports to is the one the rest of the recipe
     # already resolved. Exact pins, matching distill-gold-train: transformers drives ClearML
     # through an env-var contract (CLEARML_PROJECT, CLEARML_TASK, CLEARML_LOG_MODEL) that a
-    # backend release can reinterpret, and exact pins are also what brings them under
-    # src/gb_steps_post_training/distillation/deps_declared.py, which verifies exact pins only.
+    # backend release can reinterpret, and exact pins are also what a companion pin-verification
+    # tool checks against.
     "clearml==2.1.12",
     "wandb==0.28.2",
 ]

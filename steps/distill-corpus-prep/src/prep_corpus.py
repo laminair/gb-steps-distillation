@@ -73,7 +73,7 @@ VALID_ROLES = ("system", "user", "assistant", "tool")
 # dropped -- but COUNTED in the manifest, because renaming roles is a transformation of the
 # data and an operator is entitled to see how much of it happened.
 #
-# FOUND ON REAL DATA (LSF job 1137876): `data/distillation/en_sft_4.1` spells tool results
+# FOUND ON REAL DATA, confirmed by direct measurement: `data/distillation/en_sft_4.1` spells tool results
 # `tool_response`, and 10,665 of its messages use it. granite-4.2's chat template accepts
 # only system/user/assistant/tool -- and its `tool` branch renders the content wrapped in
 # literal `<tool_response>` tags (chat_template.jinja:176-178). So the two spellings are the
@@ -122,7 +122,7 @@ def template_renders_documents(tok) -> bool:
     """Does THIS tokenizer's chat template actually put `documents` into the prompt?
 
     The whole case for dropping grounded records rests on the template silently discarding
-    them (audit-corpus-renderability.py: 7,013 of 811,172 on the deliverable corpus), which
+    them (a companion audit found 7,013 of 811,172 on the deliverable corpus), which
     makes the assistant's answer reference text the student will never see -- measured at a
     45.1% floor for verbatim >=12-word lifts from the discarded document. That is training
     hallucination on purpose.
@@ -446,7 +446,7 @@ def normalise(record: dict, *, think_policy: str, boundary: str,
     # them would silently change what the rendered prompt looks like relative to the source
     # dataset, which is the kind of difference that shows up only as a worse eval.
     #
-    # COERCED, NOT FORWARDED VERBATIM, and that distinction cost a job (LSF 1137876, where
+    # COERCED, NOT FORWARDED VERBATIM, and that distinction cost a run (confirmed directly, where
     # 395,007 of 405,672 en_sft_4.1 records died as `template_error:ValueError`). That
     # dataset stores `tools` as the JSON *string* `"[]"`, not as a list.
     # `apply_chat_template` iterates `tools` and demands each element be a dict or a
@@ -511,7 +511,7 @@ def explode_assistant_turns(rec: dict, *, max_per_conv: int, seed_key: str) -> l
     per-turn, means editing the code that slices at a single SCALAR `teacher_prompt_length`
     shared across the batch (:3360-3460): per-row multi-segment breaks that contract, and
     that same core has already produced a loss of `student_logits.sum() * 0.0` -- an exact
-    zero with a live graph, so job 1492353 advanced every step, wrote checkpoints, reported
+    zero with a live graph, so a real run advanced every step, wrote checkpoints, reported
     success, and trained nothing. This path cannot fail that way.
 
     THE LAST ASSISTANT TURN IS ALWAYS KEPT, which is what makes the change auditable: the
@@ -568,8 +568,8 @@ def last_mask_span(mask) -> int:
     assistant turn. Summing the whole mask therefore reports more supervised tokens than
     the trainer will actually supervise, by exactly the earlier assistant turns.
 
-    The error is invisible on single-turn data, which is why it survived the first scale run
-    (LSF job 1137876): `bespoke_stratos_17k` is one user turn and one assistant turn, so
+    The error is invisible on single-turn data, which is why it survived the first scale run,
+    confirmed directly: `bespoke_stratos_17k` is one user turn and one assistant turn, so
     last_message and all_assistant produced byte-identical corpora and identical token
     stats. On a multi-turn corpus the same code would have overstated the supervised token
     count without any signal that it had.
@@ -591,10 +591,10 @@ def prompt_token_count(record: dict, tok) -> int:
     can drift from the trainer's, and a corpus that claims to be pre-filtered while filtering
     on a different rule is worse than one that makes no claim. Three things pay for it:
 
-      1. checks/prompt-budget-parity.py imports BOTH this function and the trainer's real
+      1. A companion check imports BOTH this function and the trainer's real
          prepare/filter path and asserts they agree row by row on real corpus rows. Not a
          copy of the logic on either side -- the actual two call sites, per
-         checks/lmbda-draw-agreement.py's rule, so drift fails a check instead of shipping.
+         another companion check's rule, so drift fails a check instead of shipping.
       2. Every kwarg here is the trainer's, including per-row `render_thinking` (the trainer's
          `row_thinking`, :1924) and the `documents` non-list coercion (:1902-1904, pandas NaN).
          The one difference is deliberate and inert: the trainer reads `tools` back out of an
@@ -887,13 +887,13 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             prompt_lengths.append(totals["prompt_tokens"])
         # `tools` GOES BACK TO A STRING BEFORE IT IS EMITTED, and `documents` does not.
         # normalise() parses both so measure() can render them (a string tools field is
-        # iterated character by character by the template -- LSF 1137876), but the TRAINER
+        # iterated character by character by the template, confirmed directly), but the TRAINER
         # reads the two fields differently: it json.loads `tools`
         # (custom_gold_trainer.py:1745, again at :3075) and forwards `documents` to the
         # template as-is (:1750). Emitting the parsed list therefore made the deliverable
         # corpus crash the trainer's own preprocessing on the first tools-bearing row --
         # 17.5% of en-sft-4.1-0.2-16K, none of them in the 2,000-row probe head, so every
-        # run so far was green. Found by checks/collator-masking.py on job 1162592.
+        # run so far was green. Found by a companion check.
         # Serialised HERE, before row_id(), so the id still hashes exactly the bytes that
         # reach train.jsonl and a holder of that file can still recompute it.
         # Only when present: an absent column reads as null and the trainer defaults it.
@@ -923,7 +923,7 @@ def build(args: argparse.Namespace) -> dict[str, Any]:
             # THAT OBJECTION NOW HAS AN ANSWER, and --max-completion-length takes it: the
             # render IS re-implemented (prompt_token_count), because the alternative was two
             # different row sets across the six arms of one sweep. What makes it safe is not
-            # confidence, it is checks/prompt-budget-parity.py asserting prep's predicate
+            # confidence, it is a companion check asserting prep's predicate
             # against the TRAINER'S OWN, so drift fails a check. This comment's argument still
             # holds for its own subject: the row ids remain the record of what the trainer
             # consumed, since only the trainer knows what its arm did.
@@ -1318,7 +1318,6 @@ def build_parser() -> argparse.ArgumentParser:
     # is forced true. Explosion instead changes the ROWS, so `last_message` supervises every
     # assistant turn across the corpus while each individual row still ends on one -- which
     # is the only way all six arms of the unified sweep can share a supervision scope.
-    # See docs/planning/exec-unified-corpus-sweep.md.
     p.add_argument("--explode-assistant-turns", action=argparse.BooleanOptionalAction,
                    default=False,
                    help="emit one row per assistant turn (each row a prefix ending on that "

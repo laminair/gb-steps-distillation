@@ -12,7 +12,7 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
   # Same major as the trainer that consumes this corpus. The floor matches the rest of the
-  # collection (observed in envs/kd-sandbox); 5.x is also where chat_template.jinja became
+  # collection (observed in the reference training environment); 5.x is also where chat_template.jinja became
   # the canonical location, which load_tokenizer() reads directly.
   "transformers>=5.8.0,<6",
   # The fast-tokenizer backend. A first-class dependency, not incidental: the tokenizer is
@@ -29,7 +29,7 @@ dependencies = [
   # missing PACKAGE means "this image is broken" and is fatal. So an image that can be handed a
   # ClearML or W&B config but cannot import the backend would fail AFTER the step has been
   # scheduled and its inputs staged, which is the expensive place to find out. Floors are the
-  # versions installed in envs/kd-sandbox, which deps_declared.py checks these ranges against.
+  # versions installed in the reference training environment, checked against these ranges by a companion tool.
   "clearml>=2.1.12",
   "wandb>=0.28.2",
 ]

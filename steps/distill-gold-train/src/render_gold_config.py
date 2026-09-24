@@ -202,7 +202,7 @@ _REQUIREMENT_KINDS = frozenset(
 
 # Resume modes. gold.py auto-resumes on the mere PRESENCE of output_dir/checkpoint-*
 # (gold.py:507-510) -- there is no flag there to ask for anything else. That default is
-# right for a preempted run (proven on job 1136274, which resumed across two preemptions)
+# right for a preempted run (proven directly, having resumed across two preemptions)
 # and wrong for a recipe: re-running with a changed hyperparameter into the same output_dir
 # silently restores the OLD optimizer and scheduler state under the NEW config, which looks
 # like a successful run.

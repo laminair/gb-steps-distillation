@@ -44,7 +44,7 @@ WHAT IS COMPARED, and why each one:
   max_length, max_incomplete_fraction -- HOW MUCH of each record was measured, and the threshold
       at which the run refuses to report a length-biased estimate. max_length earns its place
       here more than any other numeric key, because the failure it guards is the SILENT one:
-      job 1138147 scored 16 of 16 records at max_length 2048 and reported a clean jsd over
+      a direct measurement scored 16 of 16 records at max_length 2048 and reported a clean jsd over
       half-read completions, with n_samples showing nothing wrong.
 
   dtype -- bfloat16 vs float32 changes the logits, therefore the divergence.

@@ -26,7 +26,7 @@ Whether that is harmless or catastrophic depends on the model:
                                     concentrates in punctuation- and markup-dense text --
                                     which is to say, exactly the ChatML turn boundaries.
 
-LSF job 1136957 isolated the cause by materialising each variant separately
+A direct measurement isolated the cause by materialising each variant separately
 (transformers 5.8.0, tokenizers 0.22.1), for both models:
 
   files present                          class              pre_tokenizer used   ids
@@ -36,7 +36,7 @@ LSF job 1136957 isolated the cause by materialising each variant separately
   + tokenizer_config.json minus that key TokenizersBackend  from tokenizer.json  match
 
 Note that NONE of those variant dirs contained a `config.json`, which turned out to matter
-a great deal -- see CONFIG_KEYS_FORCED for job 1137115, which varied that file and found
+a great deal -- see CONFIG_KEYS_FORCED, whose measurement varied that file and found
 that its `model_type: granite` revives the override through
 TOKENIZER_MAPPING_NAMES["granite"] even when `tokenizer_class` is absent entirely. The
 table above is therefore sound but scoped to tokenizer-only directories, which is what an
@@ -68,8 +68,8 @@ directory into a broken one:
                         -> and that Sequence is VESTIGIAL. The model's own likelihood puts
                            the imposed plain ByteLevel ahead by 17.0% of total NLL on a raw
                            render and 19.8% on a chat render, over 512 corpus documents
-                           (jobs 1857118, 1857242). Only 3.33% of token boundaries differ at
-                           all (job 1857581), so ~272,666 extra nats land on ~22,400 tokens
+                           (measured directly). Only 3.33% of token boundaries differ at
+                           all, so ~272,666 extra nats land on ~22,400 tokens
                            -- order 12 nats each against a ~2.5 nat corpus average. That
                            concentration is what makes it a segmentation finding and not
                            noise.
@@ -80,8 +80,8 @@ every rank in `utils.py:verify_tokenizer_consistency` at 0/24 steps. Three rules
 
   a. Class identity is the mechanism, not fast-vs-slow. The GPT-2 class rebuilds its backend
      from vocab+merges and installs plain ByteLevel(use_regex=True) while still reporting
-     is_fast=True (job 1857627 loaded the published 5.0 directory untouched and saw exactly
-     that). "Pin it fast" reads like a general remedy and is not one.
+     is_fast=True (a direct measurement loaded the published 5.0 directory untouched and
+     saw exactly that). "Pin it fast" reads like a general remedy and is not one.
   b. Rank candidates on TOTAL NLL, never PPL/token -- two pre-split rules emit different
      token counts, so a per-token mean is not comparable across them. The 26.1-vs-3.29 band
      cited above does NOT transfer: it was a slow class rebuilding the MERGES, an 8x spread.
@@ -105,7 +105,7 @@ both the old and the new value.
 
 WHY THE CHECK IS A ROUND-TRIP AND NOT `is_fast`. `is_fast` is necessary but not
 sufficient: it answers "did we get a fast class", not "did we get the RIGHT fast
-tokenizer" -- job 1136957 shows every variant, correct and broken alike, reporting
+tokenizer" -- direct measurement shows every variant, correct and broken alike, reporting
 is_fast=True.
 
 For the avoidance of a mistake an earlier revision of this docstring invited: the trainer's
@@ -153,7 +153,7 @@ OVERLAY_KEEP = (
     "generation_config.json",  # eos/pad ids -- read by vLLM when serving from a dir.
 )
 
-# Legacy vocabulary sidecars. Measured to be INERT under transformers 5.8 (job 1136957):
+# Legacy vocabulary sidecars. Measured to be INERT under transformers 5.8:
 # with only these next to tokenizer.json, the resolved pre_tokenizer is still the trained
 # one. They are excluded anyway -- other transformers releases do consult them, and the
 # value of an overlay is that its contents are known exactly -- but do not mistake their
@@ -167,7 +167,7 @@ SIDECARS = ("vocab.json", "merges.txt", "vocab.txt", "tokenizer.model", "spiece.
 #
 # We pin it to PreTrainedTokenizerFast rather than deleting it, and the difference is not
 # cosmetic. Deleting was this module's first fix and it is only conditionally correct --
-# measured (job 1137115) on granite-4.1-3b-base, varying tokenizer_config.json against the
+# measured on granite-4.1-3b-base, varying tokenizer_config.json against the
 # presence of a config.json declaring `model_type: granite`:
 #
 #   tokenizer_config.json      config.json    resolved class       pre_tokenizer   ids
@@ -300,7 +300,7 @@ def verify(dest: Path, *, require_chatml: bool = True) -> list[str]:
     `require_chatml` asserts that `<|im_start|>` / `<|im_end|>` are SINGLE ids. That holds
     for the teacher and for the retagged student, and is false BY DESIGN for a pre-retag
     base student: granite-4.1-3b-base has no ChatML control tokens in its vocabulary at
-    all (measured, job 1136957 -- `<|im_start|>` -> [27, 91, 318, 5011, 91, 29] straight
+    all (measured directly -- `<|im_start|>` -> [27, 91, 318, 5011, 91, 29] straight
     from the backend), which is the reason retag_student.py exists. Pass False when
     overlaying a base model; leaving it True there reports a defect that is not one.
     """
@@ -344,7 +344,7 @@ def verify(dest: Path, *, require_chatml: bool = True) -> list[str]:
             "Almost always `tokenizer_class` in tokenizer_config.json naming a class "
             "that imposes its own pre_tokenizer, or -- if a config.json is present -- the "
             "`model_type` fallback through TOKENIZER_MAPPING_NAMES doing the same even "
-            "with that key absent (job 1137115). Pin it: see CONFIG_KEYS_FORCED. "
+            "with that key absent, confirmed by direct measurement. Pin it: see CONFIG_KEYS_FORCED. "
             "Text is being segmented with a pre_tokenizer this "
             "model was never trained with."
         )
@@ -444,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
     # own, and it cannot know which of the step's declared outputs it is producing. It
     # used to print a hardcoded `LLMB_ARTIFACT_ID:overlay`, which meant a single run
     # emitted that same undeclared id TWICE with different paths -- caught by executing
-    # the rendered step command (LSF job 1137372). The step's launcher owns artifact
+    # the rendered step command, confirmed by direct measurement. The step's launcher owns artifact
     # emission, because only the launcher knows the artifact names it declared.
     return 0
 

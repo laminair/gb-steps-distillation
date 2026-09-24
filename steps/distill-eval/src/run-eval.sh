@@ -58,8 +58,8 @@ for name in STUDENT_MODEL CORPUS OUT_DIR; do
 done
 
 # PYBIN is not hardcoded to `python`, and that is not defensive style -- it is the fix for
-# a defect that executing the rendered command caught in distill-corpus-prep (LSF job
-# 1137785): a launcher that says `python` works in the image and fails everywhere the step
+# a defect that executing the rendered command caught in distill-corpus-prep, confirmed
+# directly: a launcher that says `python` works in the image and fails everywhere the step
 # is verified outside it, which is where these steps are actually exercised first.
 PYBIN="${PYBIN:-python}"
 PKG="gb_steps_post_training.distillation"
@@ -213,7 +213,7 @@ for name, s in sorted(summaries.items()):
     print(f"  verified: {name} mean={s['mean']:.6f} over {s['n_samples']} samples")
 # Reported, not merely tolerated. An operator reading only the means cannot tell whether
 # they cover whole completions or the first 2048 tokens of them, and the truncated case is
-# the one that leaves no other trace: it does not reduce n_samples (job 1138147 scored 16 of
+# the one that leaves no other trace: it does not reduce n_samples (a direct measurement scored 16 of
 # 16 records at --max-length 2048 while cutting roughly half of every answer).
 counts = payload.get("counts", {})
 if counts.get("skipped_no_assistant_span"):

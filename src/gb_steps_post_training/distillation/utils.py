@@ -128,7 +128,7 @@ def verify_fast_tokenizer(tokenizer, model_dir: str, *, source_label: str) -> No
 
     Corrected 2026-08-25: this docstring previously named the legacy
     `vocab.json` + `merges.txt` sidecars as the trigger. Measured under this
-    tree's transformers 5.8.0 (job 1136957), the sidecars are inert — with only
+    tree's transformers 5.8.0, confirmed by direct measurement, the sidecars are inert — with only
     them alongside tokenizer.json the resolved pre_tokenizer is still the
     trained one — and the single load-bearing input is the `tokenizer_class`
     key. The checks below never keyed on file presence, so their behaviour is
@@ -155,7 +155,7 @@ def verify_fast_tokenizer(tokenizer, model_dir: str, *, source_label: str) -> No
         "entirely for a tokenizer-only dir with no config.json (what "
         "build_overlay.py does). Stripping legacy vocab.json/merges.txt is NOT "
         "a remedy — those sidecars are inert under transformers 5.8.0 "
-        "(job 1136957); an earlier version of this message advised it."
+        "confirmed by direct measurement; an earlier version of this message advised it."
     )
     header = (
         f"[{source_label}] loaded tokenizer does not match the fast tokenizer "
@@ -240,12 +240,12 @@ def verify_tokenizer_consistency(
     docs/tokenizer_mismatch.md.
 
     Note: class name equality is intentionally not checked, and this is
-    the right call for a sharper reason than originally recorded. In the
-    kd-sandbox transformers>=5.8 venv a teacher dir loads as
+    the right call for a sharper reason than originally recorded. Under a
+    transformers>=5.8 venv a teacher dir loads as
     GPT2Tokenizer while a student dir shipping only tokenizer.json loads
     as TokenizersBackend — but the asymmetry tracks the
     `tokenizer_class` key in tokenizer_config.json, not the presence of
-    vocab.json+merges.txt as this note used to say (job 1136957: the
+    vocab.json+merges.txt as this note used to say (confirmed by direct measurement: the
     sidecars are inert at this version). The class name is genuinely
     uninformative either way: it reads GPT2Tokenizer both when
     segmentation is correct (the 4.2 teacher, whose tokenizer.json

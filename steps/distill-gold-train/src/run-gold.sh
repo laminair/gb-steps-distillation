@@ -20,7 +20,7 @@ set -uo pipefail
 # into /opt/distill-gold-train/ -- so this changes nothing about a container run. What it
 # buys is that the RENDERED step command is runnable against the checkout, which is the
 # only way this step gets tested before there is an image (containerization is a separate,
-# later piece of work). Job 1138798 is why: render-step-command.py rewrites the one
+# later piece of work). Confirmed directly why: render-step-command.py rewrites the one
 # `/opt/<step>/` prefix it can see in the command text, so `bash .../src/run-gold.sh`
 # resolved fine and then the script looked for /opt/distill-gold-train/render_gold_config.py
 # and died with rc=2 before reaching anything under test.

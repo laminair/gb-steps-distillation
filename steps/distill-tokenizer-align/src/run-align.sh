@@ -5,7 +5,7 @@
 # THE THREE STAGES ARE INDEPENDENT, and an earlier version of this header claimed
 # otherwise. It said the order was load-bearing because the retag had to read the teacher's
 # tokenizer from the overlay rather than from the teacher directory. That was wrong, and
-# executing the rendered step command (LSF job 1137372) proved it: stage 3 died on a
+# executing the rendered step command, confirmed directly, proved it: stage 3 died on a
 # missing config.json, because an overlay is a tokenizer and retag_student needs a MODEL --
 # vocab_size and the bos/eos/pad id scheme live in config.json and nowhere else.
 #
@@ -21,7 +21,7 @@
 # that reason, and the overlays exist for the DOWNSTREAM consumers that do load a
 # tokenizer through transformers.
 #
-# Two things NOT to infer from that (both measured -- jobs 1136957/1137115/1137253, and
+# Two things NOT to infer from that (both measured directly across three separate runs, and
 # see docs/tokenizer_mismatch.md):
 #   - It is not the legacy vocab.json/merges.txt sidecars. Under transformers 5.8.0 those
 #     are inert; the overlay excludes them for hygiene, not for protection.
@@ -41,7 +41,7 @@
 # which is why the pin is the whole fix for this pairing. For granite-5.0-20b-sft it is
 # NOT: its stored Sequence[Split(regex), ByteLevel(use_regex=False)] is vestigial, and the
 # model's own likelihood prefers the imposed plain ByteLevel by 17.0-19.8% of TOTAL NLL
-# over 512 documents (jobs 1857118, 1857242), so the pin ALONE turned a working directory
+# over 512 documents, confirmed by direct measurement, so the pin ALONE turned a working directory
 # into one that cost an 8-GPU arm at 0/24 steps. Such a teacher needs the pin PLUS a
 # pre_tokenizer transplant (a companion tool with a --pre-tokenizer-from mode), and which
 # rule it was trained with is a MEASUREMENT, not a reading of its files: a companion
@@ -173,7 +173,7 @@ echo "--- [1/4] teacher overlay -> ${TEACHER_OVERLAY}"
   --copy-mode "$COPY_MODE" "$(verify_flag)" --require-chatml
 
 # The student overlay is NOT consumed by the retag. It exists because the plan's coupling
-# note is real and now measured (LSF job 1136957): the teacher's tokenizer.json carries a
+# note is real and now measured directly: the teacher's tokenizer.json carries a
 # plain ByteLevel pre_tokenizer while the student's carries Sequence[Split(regex),ByteLevel],
 # so the SAME TEXT segments differently, and corpus-prep needs a trustworthy student
 # tokenizer to compare against when it asserts one-tokenizer-per-run.
@@ -230,7 +230,7 @@ fi
 # verify() is reused rather than reimplemented, and it is pointed at the retag OUTPUT, not
 # at an overlay -- retag_student.py writes no sidecars and already sets
 # tokenizer_class=PreTrainedTokenizerFast, so the output satisfies verify()'s preconditions
-# directly (confirmed: job 1137161 section 5 had nothing left to force). This is also the
+# directly (confirmed by direct measurement that there was nothing left to force). This is also the
 # only place in the step where the retag's output is loaded through transformers at all,
 # which is precisely why it is worth doing here rather than trusting the pin.
 if [[ "$VERIFY" == "true" && "$DRY_RUN" != "true" ]]; then

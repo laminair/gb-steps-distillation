@@ -24,7 +24,7 @@
 #   - the module is launched with `accelerate launch -m`, not by cd-ing to its directory and
 #     naming a file. precompute_logits.py imports from gb_steps_post_training.distillation at
 #     module scope, and a flat launch puts the flat directory on sys.path and the package root
-#     NOWHERE -- jobs 1162604 and 1162625, 49 s of allocation each and zero work done. sft.py is
+#     NOWHERE -- measured directly: 49 s of allocation each and zero work done. sft.py is
 #     launched flat for historical reasons and needs the PYTHONPATH workaround below; this one
 #     does not, and is launched the way align_state and run_divergence already are.
 #   - the resume gate is asked TWICE, of two different questions. See "resume" below.
@@ -87,7 +87,7 @@ while (( $# )); do
     # Flag PAIRS, no value. step-template.yaml renders
     # `{% if %}--flag{% else %}--no-flag{% endif %}` because jinja writes a YAML boolean with
     # PYTHON casing, so `--flag {{ x }}` arrives as the literal string "False" and silently does
-    # nothing (job 1138651).
+    # nothing, confirmed by direct measurement.
     --ignore-documents)             IGNORE_DOCUMENTS="1"; shift ;;
     --no-ignore-documents)          IGNORE_DOCUMENTS="0"; shift ;;
     --allow-tokenizer-mismatch)     ALLOW_TOKENIZER_MISMATCH="1"; shift ;;
@@ -143,7 +143,7 @@ done
 # immediately below ask questions about this MACHINE -- does that corpus file exist here, is the
 # 30B teacher staged on this filesystem -- which is not what a drift check is asking and not
 # something a login node or a CPU-only suite can satisfy. Putting the lever on this line is what
-# lets checks/precompute-drift.sh assert the template's flags without a 60 GB teacher on disk.
+# lets a companion drift check assert the template's flags without a 60 GB teacher on disk.
 if [[ "${PRECOMPUTE_DRY_RUN:-0}" == "1" ]]; then
   echo "PRECOMPUTE_DRY_RUN=1: arguments parsed, nothing executed."
   echo "dry-run: all arguments accepted"
@@ -162,7 +162,7 @@ export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 
 # Same precondition as run-sft.sh and run-gold.sh: the teacher is a granite hybrid model whose
 # Mamba2 hub kernels resolve at IMPORT time, so with HF_HUB_OFFLINE=1 a cold cache is fatal AFTER
-# the GPUs are allocated (job 1136209).
+# the GPUs are allocated, confirmed by direct measurement.
 #
 # The flash-attn2 repo is asked for here for the same reason run-sft.sh asks for it and run-gold.sh
 # does not: this step requests attn_implementation="flash_attention_2" explicitly. On this account
@@ -170,7 +170,7 @@ export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 # 13.1 vs torch's cu128), and transformers resolves it at MODEL-LOAD time -- offline, after the
 # allocation. precompute_logits.py does have a fallback, but the fallback is a WARNING that
 # silently changes attention numerics for a whole corpus, so the preflight exists to keep it
-# theoretical. checks/fa2-alias.sh asserts the repo id by reading it out of transformers.
+# theoretical. A companion check asserts the repo id by reading it out of transformers.
 if [[ -f "$LIB_DIR/gold-kernels.sh" ]]; then
   source "$LIB_DIR/gold-kernels.sh"
   require_hub_kernels "$PYBIN" kernels-community/flash-attn2 || exit 1
@@ -342,8 +342,8 @@ echo "topology  : TP $GPN within 1 node, DP across $NODES node(s)"
 echo
 echo "--- [2/3] teacher forward pass"
 # `-m`, and from no particular directory: the module imports from the package at module scope, so
-# a flat launch would put the flat dir on sys.path and the package root nowhere -- jobs 1162604 /
-# 1162625. Nothing here needs a cd.
+# a flat launch would put the flat dir on sys.path and the package root nowhere -- measured
+# directly. Nothing here needs a cd.
 "$ACCELERATE" launch \
   --num_processes "$NUM_PROCESSES" \
   --num_machines "$NODES" \

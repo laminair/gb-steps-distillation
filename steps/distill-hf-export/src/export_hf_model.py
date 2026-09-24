@@ -3,8 +3,8 @@
 This step is a SELECTOR/PRUNER, not a format converter. That is a verified property, not
 an assumption: the DeepSpeed config used by `distill-gold-train` sets
 `zero3_save_16bit_model: true`, so `Trainer.save_model` already writes HF-native
-`model.safetensors` at the checkpoint root. Confirmed directly on job 1136274's
-checkpoint-25 -- a 704786224-byte `model.safetensors` (350M params x 2 bytes) sitting
+`model.safetensors` at the checkpoint root. Confirmed directly on a real checkpoint
+-- a 704786224-byte `model.safetensors` (350M params x 2 bytes) sitting
 beside the DeepSpeed `global_step25/` shard tree.
 
 So there are exactly four jobs here, and none of them is a weight conversion:
@@ -87,7 +87,7 @@ PRUNE_KNOWN = (
 PRUNE_DIR_PREFIXES = ("global_step",)
 
 # Load-time kwargs that transformers persists into tokenizer_config.json. Neither is
-# tokenizer configuration; both were observed in job 1136274's checkpoint-25
+# tokenizer configuration; both were observed directly on a real checkpoint
 # (`local_files_only` and `is_local`), and `is_local` was already present in the student
 # source. Publishing a model whose tokenizer config pins local_files_only=true is wrong.
 STRIP_TOKENIZER_KEYS = ("local_files_only", "is_local")
@@ -106,7 +106,7 @@ PADDING_SIDES = ("right", "left", "keep")
 # For a student distilled on a corpus with no think traces those are not equivalent, and the
 # DEFAULT is the wrong one. Every labelled assistant span in that corpus begins with the
 # literal `<think></think>` -- template line 90 prepends it to any assistant turn carrying no
-# think markers, which job 1141677 measured as 120/120 spans. So the model was trained to emit
+# think markers, confirmed by direct measurement as 120/120 spans. So the model was trained to emit
 # `</think>` immediately after `<think>`, and was never once conditioned on `<think>\n`: the
 # newline between the two markers does not occur anywhere in its training data. `default-off`
 # flips line 13 so the published default is the shape the weights actually saw.
@@ -527,7 +527,7 @@ def main(argv: list[str] | None = None) -> int:
     # belongs to the launcher, because that is where the declared name lives -- keeping the
     # echo next to the outputs block is what stops the two from drifting apart. (Same
     # reasoning removed a duplicate from build_overlay.py, where the problem was first
-    # measured: LSF job 1137372.)
+    # measured, confirmed directly.)
     return 0
 
 

@@ -177,7 +177,7 @@ def spans_from_scan(ids: list[int], resp: list[int], eos_id: int | None) -> list
 # whole run -- so a contract that held only under one setting would be a contract that silently
 # breaks when a caller flips it. Both are rendered and both must agree.
 #
-# This is not hypothetical: checks/collator-masking.py reproduces custom_gold_trainer.py's own
+# This is not hypothetical: a companion check reproduces custom_gold_trainer.py's own
 # asymmetry, where prompt_text and full_text are rendered with enable_thinking=False while the call
 # that produces `input_ids` is rendered without it. One run therefore uses both settings.
 #
@@ -284,10 +284,10 @@ def derive(tokenizer_dir: Path, *, config_dir: Path | None = None) -> dict:
     _assert_branch_coverage(preceding, maximal)
 
     # TRIM the maximal suffix, and this is not tidiness. The longest common suffix is
-    # OVER-SPECIFIC: measured on this template (job 1162297) every assistant turn -- including one
+    # OVER-SPECIFIC: measured directly on this template, every assistant turn -- including one
     # that opens the conversation, because the template emits a default system turn first -- is
     # preceded by `<|im_end|>\n`, so the intersection reaches back through the PREVIOUS turn's
-    # terminator. Job 1161822 derived `<|im_end|>\n<|im_start|>assistant\n` for exactly that
+    # terminator. Direct measurement derived `<|im_end|>\n<|im_start|>assistant\n` for exactly that
     # reason. Such a marker is correct on every conversation shaped like the probes and wrong on
     # the first one that is not -- and "wrong" here means the collator finds nothing and every
     # label stays at ignore_index, silently (utils.py:465-500 has no post-condition).
@@ -355,7 +355,7 @@ def derive(tokenizer_dir: Path, *, config_dir: Path | None = None) -> dict:
         agreement.append({
             "probe": name,
             "spans": len(scan),
-            # Signed, and its SIGN is informative. Measured on granite-4.x (job 1161822): -1,
+            # Signed, and its SIGN is informative. Measured directly on granite-4.x: -1,
             # because the generation block closes AFTER the turn's trailing newline while the
             # collator's scan stops at the eos it includes. A positive delta would be the opposite
             # convention. Recorded per span rather than tolerated, so a reader sees 1 and not 40.
@@ -378,7 +378,7 @@ def derive(tokenizer_dir: Path, *, config_dir: Path | None = None) -> dict:
         "instruction_template": None,
         "instruction_template_note": (
             "not derived: instruction_token_ids is assigned at utils.py:354 and read nowhere, and "
-            "checks/gold-config-masking.py asserts that stays true."),
+            "a companion config check asserts that stays true."),
         "source": {
             "tokenizer_dir": str(tokenizer_dir),
             "tokenizer_json_sha256": _sha256(tokenizer_dir / "tokenizer.json"),
@@ -525,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         # BESIDE the tokenizer, not beside its directory. `--tokenizer` names a model DIRECTORY on
         # every caller (run-align.sh passes $RETAGGED), so `.parent` here put masking.json one level
-        # up -- outside the dir that align_state declares it in. Job 1162482 caught that the only
+        # up -- outside the dir that align_state declares it in. Caught the only
         # way it could be caught: the step emitted the contract, printed a path, and then REFUSED to
         # write its marker because the output it promised was not where it promised to put it.
         tokenizer = Path(args.tokenizer)

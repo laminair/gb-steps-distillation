@@ -300,7 +300,7 @@ def serialize_tools_for_index(tools_value):
 
         pyarrow.lib.ArrowInvalid: cannot mix struct and non-struct, non-null values
 
-    Job 1372136 is that failure -- the blend arm reached the trainer and died loading its own index.
+    That failure is where this requirement comes from -- the blend arm reached the trainer and died loading its own index.
     It surfaced only at row 16,561 of 20,000, because the first tool-bearing rows happened to agree.
 
     THE CORPUS ALREADY SOLVED THIS. The deliverable corpus stores `tools` as a JSON STRING (measured:
@@ -698,10 +698,10 @@ def _ensure_process_group(torch, world_size, *, env=None, emit=print):
     things then break, and this step's first two real runs found them one after the other:
 
       * init_device_mesh("cuda", (1, 1)) dies in torch's env:// rendezvous with "environment
-        variable RANK expected, but not set" (LSF job 1201614);
+        variable RANK expected, but not set", confirmed by direct measurement;
       * with the group initialized but the environment still bare, transformers'
         initialize_tensor_parallelism() indexes os.environ["LOCAL_RANK"] directly and raises
-        KeyError (LSF job 1201632).
+        KeyError, also confirmed by direct measurement.
 
     Every rank count above 1 goes through accelerate's multiprocessing launcher, which sets all of
     them -- which is why an earlier version, run only at 8 and 16 ranks, never met either.

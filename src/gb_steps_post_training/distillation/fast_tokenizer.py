@@ -5,7 +5,7 @@ WHY THIS MODULE EXISTS AT ALL. A Granite directory's `tokenizer_config.json` dec
 GPT2TokenizerFast, and that class imposes its OWN plain ByteLevel `pre_tokenizer` over the
 one stored in `tokenizer.json`. It does not error. It silently mis-segments: 26.1 versus
 3.29 PPL/token on the granite-4.1 base student, whose trained pre_tokenizer is
-`Sequence[Split(regex), ByteLevel]` (measured -- jobs 1136957/1137115/1137253, and see
+`Sequence[Split(regex), ByteLevel]` (measured directly across three separate runs, and see
 docs/tokenizer_mismatch.md). Deleting the key is not enough either: with a `config.json`
 present, the `model_type: granite` fallback through TOKENIZER_MAPPING_NAMES revives the
 override.

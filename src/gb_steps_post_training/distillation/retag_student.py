@@ -96,7 +96,7 @@ def load_config(model_dir: str) -> dict:
     naming: passing build_overlay's tokenizer OVERLAY as --teacher. That is a
     natural mistake -- the overlay is what distill-gold-train's
     teacher_tokenizer_path wants, and the two paths sit next to each other in a
-    recipe -- and LSF job 1137372 made it for real.
+    recipe -- and it has happened for real.
 
     An overlay is the wrong input here, and NOT because of the tokenizer_class
     trap. This module is immune to that by construction: it reads tokenizer.json
@@ -363,7 +363,7 @@ def main() -> None:
     # Adopt the teacher's tokenizer. TOKENIZER_FILES deliberately excludes the
     # vocab.json / merges.txt sidecars, but note that exclusion is NOT what makes
     # this correct -- under this tree's transformers 5.8.0 those sidecars are inert
-    # (measured, job 1136957). Two things actually protect this output, and both
+    # (measured directly). Two things actually protect this output, and both
     # are below rather than here:
     #   1. tokenizer_class is rewritten to "PreTrainedTokenizerFast" a few lines
     #      down, which is what stops AutoTokenizer from constructing a class that

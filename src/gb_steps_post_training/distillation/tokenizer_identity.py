@@ -50,7 +50,7 @@ def derive_name(model_dir: Path) -> str:
         <HF_HOME>/hub/models--ibm-granite--granite-4.2-3b/snapshots/8b6ac672.../
     so the basename is a 40-char commit SHA. Recording that as the identity produces exactly
     the mismatch message the guard was designed to avoid: "8b6ac672... != a50b46ce..." says
-    nothing about which tokenizer was wrong. Measured on LSF job 1137785, where the first
+    nothing about which tokenizer was wrong. Confirmed by direct measurement, where the first
     version of this defaulting recorded precisely those SHAs.
 
     So walk up to the `models--org--name` directory and decode it back to `org/name`. Any

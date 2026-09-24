@@ -73,13 +73,13 @@ def assistant_span(messages: list[dict], tok, max_length: int) -> dict | None:
     full rendering adds. Deliberately NOT `return_assistant_tokens_mask`: that marks every
     assistant turn (granite-4.2's template wraps each one in `{% generation %}`), whereas this
     measures the completion, matching what a `last_message_only` run trained on. The two
-    differ by 46% of assistant tokens on real multi-turn data (job 1137954).
+    differ by 46% of assistant tokens on real multi-turn data, confirmed by direct measurement.
 
     Returns None when there is no span to measure. `truncated` in the returned dict flags a
     span that EXISTS but is cut short, which is a different and much sneakier problem -- see
     below.
 
-    WHY TRUNCATION IS REPORTED AND NOT JUST APPLIED. Measured on LSF job 1138147: at
+    WHY TRUNCATION IS REPORTED AND NOT JUST APPLIED. Measured directly: at
     --max-length 2048 against a corpus rendering to ~3956 tokens, not one record of sixteen
     was skipped. The prompts fit easily, so every span was non-empty and every record was
     measured -- on a PREFIX of its completion, with the tail silently discarded. A
@@ -90,10 +90,10 @@ def assistant_span(messages: list[dict], tok, max_length: int) -> dict | None:
 
     Do not read that as "2048 does not skip". Both damage modes are live on the same corpus
     at the same setting, and which one you get depends on which records you draw: the
-    preflight in job 1138380 measured 32 records at prompt min/median/max 1178/1572/3706 and
+    preflight measured 32 records at prompt min/median/max 1178/1572/3706 and
     full min/median/max 1720/2466/4082, so --max-length 2048 skips 11 of them (prompt alone
-    over budget) AND truncates 17 (prompt fits, answer does not). Job 1138147's sixteen
-    records were simply all in the second group. The point is that the two are independent,
+    over budget) AND truncates 17 (prompt fits, answer does not). A separate run of sixteen
+    records was simply all in the second group. The point is that the two are independent,
     and only one of them used to be counted.
     """
     import torch

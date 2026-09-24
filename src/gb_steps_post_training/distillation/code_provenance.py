@@ -1,11 +1,11 @@
 """Record which code a training run actually executed.
 
 WHY THIS EXISTS. The lmbda sweep's premise is that its three arms differ in lmbda and in nothing else,
-and checks/lmbda-sweep-arms.py asserts exactly that -- about the CONFIGS. It says nothing about the
+and a companion config check asserts exactly that -- about the CONFIGS. It says nothing about the
 code, and the arms do not run at the same time: on `preemptable` they dispatch hours apart, from a repo
-that is still being committed to. Arm 1 already demonstrated the failure mode. Job 1154546 ran it to
+that is still being committed to. Arm 1 already demonstrated the failure mode: it ran to
 completion, and 13 commits landed in distillation/ between that dispatch and the next arm's, including
-the masking contract moving out of the configs (f8dea25) and the row manifest (5d45ed8). Its curve is
+the masking contract moving out of the configs and the row manifest. Its curve is
 real and its comparison to arms 2 and 3 would not have been, and nothing in the run would have said so.
 
 So the config invariant is checked and the code invariant was merely hoped for. This closes that by
