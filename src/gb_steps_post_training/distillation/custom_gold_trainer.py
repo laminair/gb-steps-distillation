@@ -2340,6 +2340,19 @@ class CustomGOLDTrainer(GOLDTrainer):
         if self.args.lmbda_schedule == "constant":
             return self.lmbda
 
+        if self.args.lmbda_schedule == "linear":
+            max_steps = self.state.max_steps
+            current_step = self.state.global_step
+
+            if max_steps <= 0:
+                return self.args.lmbda_init
+
+            progress = min(1.0, current_step / max_steps)
+            current_lmbda = self.args.lmbda_init + progress * (self.args.lmbda - self.args.lmbda_init)
+            return current_lmbda
+
+        return self.lmbda
+
     def _draw_on_policy(self, current_lmbda: float) -> bool:
         """Whether THIS step draws from the teacher, decided identically on every rank.
 
@@ -2355,19 +2368,6 @@ class CustomGOLDTrainer(GOLDTrainer):
             global_step=getattr(self.state, "global_step", 0),
             device=self.accelerator.device,
         )
-
-        if self.args.lmbda_schedule == "linear":
-            max_steps = self.state.max_steps
-            current_step = self.state.global_step
-
-            if max_steps <= 0:
-                return self.args.lmbda_init
-
-            progress = min(1.0, current_step / max_steps)
-            current_lmbda = self.args.lmbda_init + progress * (self.args.lmbda - self.args.lmbda_init)
-            return current_lmbda
-
-        return self.lmbda
 
     def _get_current_beta(self) -> float:
         """
