@@ -69,7 +69,7 @@ class CustomGOLDConfig(GOLDConfig):
     )
     lmbda_schedule: str = field(
         default="constant",
-        metadata={"help": "Schedule for lmbda: 'constant' or 'linear'. When 'linear', lmbda increases from lmbda_init to lmbda_end."},
+        metadata={"help": "Schedule for lmbda: 'constant' or 'linear'. When 'linear', lmbda increases from lmbda_init to lmbda."},
     )
     lmbda_init: float = field(
         default=None,
