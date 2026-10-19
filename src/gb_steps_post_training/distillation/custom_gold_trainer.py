@@ -57,6 +57,7 @@ from trl.extras.profiling import profiling_decorator
 from trl.extras.vllm_client import VLLMClient
 
 from gb_steps_post_training.distillation.on_policy_draw import draw_on_policy
+from gb_steps_post_training.distillation.schedules import scheduled_value
 
 # Patch VLLMClient to read group_port from VLLM_NCCL_COORDINATOR_PORT env var
 # instead of using the hardcoded default (51216), which causes port collisions
@@ -2337,21 +2338,10 @@ class CustomGOLDTrainer(GOLDTrainer):
         Returns:
             Current lmbda value, linearly interpolated if lmbda_schedule='linear'
         """
-        if self.args.lmbda_schedule == "constant":
-            return self.lmbda
-
-        if self.args.lmbda_schedule == "linear":
-            max_steps = self.state.max_steps
-            current_step = self.state.global_step
-
-            if max_steps <= 0:
-                return self.args.lmbda_init
-
-            progress = min(1.0, current_step / max_steps)
-            current_lmbda = self.args.lmbda_init + progress * (self.args.lmbda - self.args.lmbda_init)
-            return current_lmbda
-
-        return self.lmbda
+        return scheduled_value(
+            self.args.lmbda_schedule, self.args.lmbda_init, self.lmbda,
+            self.state.global_step, self.state.max_steps,
+        )
 
     def _draw_on_policy(self, current_lmbda: float) -> bool:
         """Whether THIS step draws from the teacher, decided identically on every rank.
@@ -2376,37 +2366,16 @@ class CustomGOLDTrainer(GOLDTrainer):
         Returns:
             Current beta value, linearly interpolated if beta_schedule='linear'
         """
-        if self.args.beta_schedule == "constant":
-            return self.beta
-
-        if self.args.beta_schedule == "linear":
-            max_steps = self.state.max_steps
-            current_step = self.state.global_step
-
-            if max_steps <= 0:
-                return self.args.beta_init
-
-            progress = min(1.0, current_step / max_steps)
-            current_beta = self.args.beta_init + progress * (self.beta - self.args.beta_init)
-            return current_beta
-
-        return self.beta
+        return scheduled_value(
+            self.args.beta_schedule, self.args.beta_init, self.beta,
+            self.state.global_step, self.state.max_steps,
+        )
 
     def _get_current_alpha(self) -> float:
-        if self.args.alpha_schedule == "constant":
-            return self.args.alpha
-
-        if self.args.alpha_schedule == "linear":
-            max_steps = self.state.max_steps
-            current_step = self.state.global_step
-
-            if max_steps <= 0:
-                return self.args.alpha_init
-
-            progress = min(1.0, current_step / max_steps)
-            return self.args.alpha_init + progress * (self.args.alpha - self.args.alpha_init)
-
-        return self.args.alpha
+        return scheduled_value(
+            self.args.alpha_schedule, self.args.alpha_init, self.args.alpha,
+            self.state.global_step, self.state.max_steps,
+        )
 
     def create_optimizer(self):
         """Override to include hidden projection parameters in the optimizer."""

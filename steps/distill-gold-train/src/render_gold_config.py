@@ -21,7 +21,7 @@ import json
 import sys
 from pathlib import Path
 
-from gb_steps_post_training.distillation import render_common, tokenizer_identity
+from gb_steps_post_training.distillation import render_common, schedules, tokenizer_identity
 from typing import Any
 
 import yaml
@@ -231,6 +231,46 @@ _student_tokenizer_identity = render_common.student_tokenizer_identity
 _existing_checkpoints = render_common.existing_checkpoints
 
 
+def _parse_extra(args: argparse.Namespace) -> dict[str, Any]:
+    """extra_config_yaml as a mapping ({} when empty). ConfigError if it is not one."""
+    extra_raw = (getattr(args, "extra_config_yaml", "") or "").strip()
+    if not extra_raw:
+        return {}
+    extra = yaml.safe_load(extra_raw)
+    if not isinstance(extra, dict):
+        raise ConfigError(
+            f"extra_config_yaml must parse to a mapping; got {type(extra).__name__}."
+        )
+    return extra
+
+
+def _schedule_range(extra: dict[str, Any], name: str, final: float) -> tuple[float, float]:
+    """(min, max) of lmbda or beta over the whole run, reading a schedule from extra_config_yaml.
+
+    WHY THIS EXISTS. lmbda_schedule / beta_schedule are not step config keys; they reach the
+    trainer only through extra_config_yaml. Checking the per-arm requirements against the
+    FINAL value alone meant a ramp from `<name>_init` passed validation and then trained a
+    different arm for the early part of the run -- e.g. sampled_opd at lmbda 1.0 ramped from
+    0.0 is off-policy at step 0. Linear schedules are monotone, so the endpoints are the range.
+    """
+    schedule = extra.get(f"{name}_schedule", "constant")
+    init = extra.get(f"{name}_init")
+    if schedule not in schedules.SCHEDULES:
+        raise ConfigError(
+            f"{name}_schedule={schedule!r} is not one of {list(schedules.SCHEDULES)}."
+        )
+    if schedule == "linear":
+        if init is None:
+            raise ConfigError(f"{name}_schedule='linear' requires {name}_init in extra_config_yaml.")
+        try:
+            init = float(init)
+        except (TypeError, ValueError):
+            raise ConfigError(f"{name}_init must be a number; got {init!r}.") from None
+        if not 0.0 <= init <= 1.0:
+            raise ConfigError(f"{name}_init must be in [0, 1]; got {init}.")
+    return schedules.schedule_range(schedule, init, final)
+
+
 def validate(args: argparse.Namespace, *, check_paths: bool = True) -> None:
     """Raise ConfigError on any config this step must not run."""
     if args.loss_arm not in LOSS_ARMS:
@@ -252,6 +292,21 @@ def validate(args: argparse.Namespace, *, check_paths: bool = True) -> None:
             f"'server' asks for {args.vllm_num_servers} node(s) that would each be taken "
             "away from the trainer. Set lmbda > 0.0 for the on-policy arm, or set "
             "vllm_num_servers=0 for the off-policy one."
+        )
+    extra = _parse_extra(args)
+    lmbda_lo, lmbda_hi = _schedule_range(extra, "lmbda", args.lmbda)
+    beta_lo, beta_hi = _schedule_range(extra, "beta", args.beta)
+
+    # The topology is picked from the FINAL lmbda (here, in render(), and in run-gold.sh). A
+    # ramp that ends at 0.0 but starts above it would launch off-policy -- no vLLM -- and
+    # then ask for on-policy rollouts in its first steps. Refused rather than re-derived:
+    # every topology decision would have to learn about schedules to support it.
+    if args.lmbda == 0.0 and lmbda_hi > 0.0:
+        raise ConfigError(
+            f"lmbda=0.0 with lmbda_init={lmbda_hi} ramps DOWN from on-policy to off-policy, "
+            "but this step picks the off-policy topology (no vLLM server) from the final "
+            "lmbda, so the on-policy early steps would have nothing to generate with. Ramp "
+            "up instead (lmbda_init <= lmbda), or keep lmbda > 0.0."
         )
     if args.resume not in RESUME_MODES:
         raise ConfigError(
@@ -285,21 +340,32 @@ def validate(args: argparse.Namespace, *, check_paths: bool = True) -> None:
     _req = _arm.get("requires", {})
     _why = _arm.get("why", "")
     _tail = f" WHY: {_why}." if _why else ""
+    # Bounds are checked against the whole schedule's range, not just the final value --
+    # see _schedule_range. With no schedule the range is (final, final) and nothing changes.
+    _lmbda_desc = (
+        f"lmbda={args.lmbda}" if lmbda_lo == lmbda_hi
+        else f"lmbda ranging over [{lmbda_lo}, {lmbda_hi}] (linear schedule)"
+    )
+    _beta_desc = (
+        f"beta={args.beta}" if beta_lo == beta_hi
+        else f"beta ranging over [{beta_lo}, {beta_hi}] (linear schedule)"
+    )
     for _kind, _bound in _req.items():
-        if _kind == "lmbda_eq" and args.lmbda != _bound:
+        if _kind == "lmbda_eq" and not (lmbda_lo == lmbda_hi == _bound):
             raise ConfigError(
-                f"loss_arm={args.loss_arm!r} requires lmbda={_bound}; got {args.lmbda}."
-                f"{_tail} Set lmbda explicitly rather than having it changed for you."
+                f"loss_arm={args.loss_arm!r} requires lmbda={_bound} for the whole run; got "
+                f"{_lmbda_desc}.{_tail} Set lmbda explicitly rather than having it changed "
+                "for you."
             )
-        elif _kind == "beta_strictly_between" and not (_bound[0] < args.beta < _bound[1]):
+        elif _kind == "beta_strictly_between" and not (_bound[0] < beta_lo and beta_hi < _bound[1]):
             raise ConfigError(
                 f"loss_arm={args.loss_arm!r} requires {_bound[0]} < beta < {_bound[1]}; "
-                f"got beta={args.beta}.{_tail}"
+                f"got {_beta_desc}.{_tail}"
             )
-        elif _kind == "lmbda_strictly_between" and not (_bound[0] < args.lmbda < _bound[1]):
+        elif _kind == "lmbda_strictly_between" and not (_bound[0] < lmbda_lo and lmbda_hi < _bound[1]):
             raise ConfigError(
                 f"loss_arm={args.loss_arm!r} requires {_bound[0]} < lmbda < {_bound[1]}; "
-                f"got lmbda={args.lmbda}.{_tail}"
+                f"got {_lmbda_desc}.{_tail}"
             )
         elif _kind == "last_message_only" and bool(args.last_message_only) != bool(_bound):
             raise ConfigError(
@@ -475,13 +541,8 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
         if (_val or "").strip():
             cfg[_key] = _val.strip()
 
-    extra_raw = (args.extra_config_yaml or "").strip()
-    if extra_raw:
-        extra = yaml.safe_load(extra_raw)
-        if not isinstance(extra, dict):
-            raise ConfigError(
-                f"extra_config_yaml must parse to a mapping; got {type(extra).__name__}."
-            )
+    extra = _parse_extra(args)
+    if extra:
         # Merged UNDER the contract keys: a collision is an error, not a silent winner.
         # An escape hatch that can override an explicit contract key is not an escape
         # hatch, it is a second config system with undefined precedence.
